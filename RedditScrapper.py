@@ -1,4 +1,5 @@
 import praw
+import yfinance as yf
 import config
 import os
 import pandas as pd
@@ -10,6 +11,8 @@ reddit = praw.Reddit(client_id=config.client_id,  # your client id
                      password=config.password)  # your reddit password
 sub = 'wallstreetbets'
 subreddit = reddit.subreddit(sub)
+
+wordsToIgnore = ["SEC", "for", "and"]
 
 post_dict = {
     "title": [],  # title of the post
@@ -26,13 +29,31 @@ comments_dict = {
     "comment_body": [],  # text in comment
     "comment_link_id": []  # link to the comment
 }
-for hotPosts in subreddit.hot(limit=10):
-    post_dict["title"].append(hotPosts.title)
-    post_dict["score"].append(hotPosts.score)
-    post_dict["id"].append(hotPosts.id)
-    post_dict["url"].append(hotPosts.url)
-    post_dict["comms_num"].append(hotPosts.num_comments)
-    post_dict["created"].append(hotPosts.created_utc)
-    #post_dict["body"].append(hotPosts.body)
-pd = post_dict
-print(pd)
+
+# hotPost is a Submission of subreddit
+for hotPost in subreddit.hot(limit=10):
+    post_dict["title"].append(hotPost.title)
+    post_dict["score"].append(hotPost.score)
+    post_dict["id"].append(hotPost.id)
+    post_dict["url"].append(hotPost.url)
+    post_dict["comms_num"].append(hotPost.num_comments)
+    post_dict["created"].append(hotPost.created_utc)
+    post_dict["body"].append(hotPost.selftext)
+
+# pd = post_dict
+df = pd.DataFrame.from_dict(post_dict)
+
+tickers = {}
+
+for title in df["title"]:
+    wordList = title.split()
+    for word in wordList:
+        word = word.translate({ord(i): None for i in '$.,'})
+        if (len(word) > 5 or (word in wordsToIgnore) or (not word.isupper())):
+            continue
+
+        ticker = yf.Ticker(word)
+        if (ticker.info['regularMarketPrice'] != None):
+            tickers[word] = ticker
+print(tickers)
+# df.to_csv("data.csv")
