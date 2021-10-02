@@ -43,9 +43,10 @@ for hotPost in subreddit.hot(limit=10):
 # pd = post_dict
 df = pd.DataFrame.from_dict(post_dict)
 
-tickers = {}
+tickers = []
 
 for title in df["title"]:
+    tempTicks = []
     wordList = title.split()
     for word in wordList:
         word = word.translate({ord(i): None for i in '$.,'})
@@ -54,6 +55,10 @@ for title in df["title"]:
 
         ticker = yf.Ticker(word)
         if (ticker.info['regularMarketPrice'] != None):
-            tickers[word] = ticker
-print(tickers)
+            tempTicks.append(ticker)
+    tickers.append(tempTicks)
+
+df['tickers'] = tickers
+print(df['title'])
+print(df['tickers'])
 # df.to_csv("data.csv")
