@@ -9,10 +9,9 @@ reddit = praw.Reddit(client_id=config.client_id,  # your client id
                      user_agent=config.user_agent,  # user agent name
                      username=config.username,  # your reddit username
                      password=config.password)  # your reddit password
-sub = 'wallstreetbets'
-subreddit = reddit.subreddit(sub)
+subreddits = ['wallstreetbets', 'stocks', 'investing']
 
-wordsToIgnore = ["SEC", "for", "and"]
+wordsToIgnore = ["SEC", "for", "and", "TA", "A"]
 
 post_dict = {
     "title": [],  # title of the post
@@ -31,34 +30,50 @@ comments_dict = {
 }
 
 # hotPost is a Submission of subreddit
-for hotPost in subreddit.hot(limit=10):
-    post_dict["title"].append(hotPost.title)
-    post_dict["score"].append(hotPost.score)
-    post_dict["id"].append(hotPost.id)
-    post_dict["url"].append(hotPost.url)
-    post_dict["comms_num"].append(hotPost.num_comments)
-    post_dict["created"].append(hotPost.created_utc)
-    post_dict["body"].append(hotPost.selftext)
+for sub in subreddits:
+    subreddit = reddit.subreddit(sub)
+    for hotPost in subreddit.hot(limit=2):
+        post_dict["title"].append(hotPost.title)
+        post_dict["score"].append(hotPost.score)
+        post_dict["id"].append(hotPost.id)
+        post_dict["url"].append(hotPost.url)
+        post_dict["comms_num"].append(hotPost.num_comments)
+        post_dict["created"].append(hotPost.created_utc)
+        post_dict["body"].append(hotPost.selftext)
 
 # pd = post_dict
 df = pd.DataFrame.from_dict(post_dict)
+tempDf = pd.read_csv("data.csv")
+tickers = [[]] * len(df)
+print(tickers)
+searchdf = df.filter(['title', 'body'])
 
-tickers = []
+# Does not currently work properly
+def searchCol(col):
+    index = 0
+    for post in searchdf[col]:
+        tempTicks = tickers.pop(index)
+        print(index)
+        print(tempTicks)
+        wordList = post.split()
+        for word in wordList:
+            word = word.translate({ord(i): None for i in '$.,-!'})
+            if (len(word) > 5 or (word in wordsToIgnore) or (not word.isupper())):
+                continue
 
-for title in df["title"]:
-    tempTicks = []
-    wordList = title.split()
-    for word in wordList:
-        word = word.translate({ord(i): None for i in '$.,'})
-        if (len(word) > 5 or (word in wordsToIgnore) or (not word.isupper())):
-            continue
+            ticker = yf.Ticker(word)
+            if (ticker.info['regularMarketPrice'] != None):
+                tempTicks.append(word)
+        tickers.insert(index, tempTicks)
+        index+=1
 
-        ticker = yf.Ticker(word)
-        if (ticker.info['regularMarketPrice'] != None):
-            tempTicks.append(ticker)
-    tickers.append(tempTicks)
+for col in searchdf:
+    searchCol(col)
+
+print(tickers)
 
 df['tickers'] = tickers
-print(df['title'])
-print(df['tickers'])
+
+
+# print(df['tickers'])
 # df.to_csv("data.csv")
